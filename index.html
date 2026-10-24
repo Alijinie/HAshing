@@ -1,0 +1,95 @@
+<!DOCTYPE="html">
+<head>
+  <title>Hashing Example</title>
+</head>
+<body>
+<html lang="en">
+<div class="card">
+  <h2>Browser Safe Box</h2>
+  <p id="status">No PIN set. Set one to lock the box.</p>
+
+  <input type="password" id="setPinInput" placeholder="Set a 4-digit PIN...">
+  <button id="setPinBtn">Lock Box (Save Hash)</button>
+
+  <hr style="margin: 20px 0; border-color: #334155;">
+
+  <input type="password" id="unlockInput" placeholder="Enter PIN to unlock...">
+  <button id="unlockBtn">Unlock Box</button>
+
+  <div class="output-container">
+    <strong>Stored Hash in localStorage:</strong>
+    <p id="hashOutput">- empty -</p>
+  </div>
+</div>
+<script>
+  // Same core function from your PDF
+async function sha256(message) {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(message);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+  return hashHex;
+}
+
+// UI elements
+const setPinInput = document.getElementById('setPinInput');
+const setPinBtn = document.getElementById('setPinBtn');
+const unlockInput = document.getElementById('unlockInput');
+const unlockBtn = document.getElementById('unlockBtn');
+const hashOutput = document.getElementById('hashOutput');
+const statusEl = document.getElementById('status');
+
+// Load existing hash on page load
+function refreshUI() {
+  const savedHash = localStorage.getItem('safeBoxHash');
+  if (savedHash) {
+    hashOutput.textContent = savedHash;
+    statusEl.textContent = "Box is LOCKED. Enter PIN to unlock.";
+  } else {
+    hashOutput.textContent = "- empty -";
+    statusEl.textContent = "No PIN set. Set one to lock the box.";
+  }
+}
+refreshUI();
+
+// 1. SET PIN -> Hash and store
+setPinBtn.addEventListener('click', async () => {
+  const pin = setPinInput.value.trim();
+  if (!pin) return alert("Enter a PIN first");
+
+  const hash = await sha256(pin);
+  
+  // This is the Safe Box part: store ONLY the hash, not the PIN
+  localStorage.setItem('safeBoxHash', hash);
+  
+  setPinInput.value = "";
+  refreshUI();
+  alert("Box locked! Hash saved to localStorage.");
+});
+
+// 2. VERIFY PIN -> Hash input and compare
+unlockBtn.addEventListener('click', async () => {
+  const savedHash = localStorage.getItem('safeBoxHash');
+  if (!savedHash) return alert("No PIN set yet!");
+
+  const attempt = unlockInput.value.trim();
+  const attemptHash = await sha256(attempt);
+
+  // Compare hashes, not raw PINs
+  if (attemptHash === savedHash) {
+    statusEl.textContent = "✅ UNLOCKED - Correct PIN!";
+    statusEl.style.color = "#4ade80";
+    // Here you would show hidden content
+  } else {
+    statusEl.textContent = "❌ LOCKED - Wrong PIN!";
+    statusEl.style.color = "#f87171";
+  }
+  unlockInput.value = "";
+});
+
+// Optional: Add a clear button for testing
+// localStorage.removeItem('safeBoxHash')
+</script>
+</body>
+</html>
